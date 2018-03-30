@@ -5,6 +5,10 @@ import tensorflow.contrib.slim as slim
 import numpy as np
 
 
+IMAGES_DIR = 'images/'
+SEMANTICS_DIR = 'semantics/'
+
+
 def lrelu(x):
     return tf.maximum(0.2 * x, x)
 
@@ -175,7 +179,7 @@ def compute_error(real, fake, label):
 #os.environ['CUDA_VISIBLE_DEVICES']=str(np.argmax([int(x.split()[2]) for x in open('tmp','r').readlines()]))#select a GPU with maximum available memory
 #os.system('rm tmp')
 sess = tf.Session()
-is_training = False
+is_training = True
 sp = 256  #spatial resolution: 256x512
 with tf.variable_scope(tf.get_variable_scope()):
     label = tf.placeholder(tf.float32, [None, None, None, 20])
@@ -227,12 +231,12 @@ if is_training:
             cnt += 1
             if input_images[ind] is None:
                 label_images[ind] = helper.get_semantic_map(
-                    "data/cityscapes/Label256Full/%08d.png" %
+                    SEMANTICS_DIR + "/%d.png" %
                     ind)  #training label
                 input_images[ind] = np.expand_dims(
                     np.float32(
                         scipy.misc.imread(
-                            "data/cityscapes/RGB256Full/%08d.png" % ind)),
+                            IMAGES_DIR + "%d.png" % ind)),
                     axis=0)  #training image
             _, G_current, l0, l1, l2, l3, l4, l5 = sess.run(
                 [G_opt, G_loss, p0, p1, p2, p3, p4, p5],
@@ -261,61 +265,61 @@ if is_training:
         saver.save(sess, "result_256p/model.ckpt")
         if epoch % 20 == 0:
             saver.save(sess, "result_256p/%04d/model.ckpt" % epoch)
-        for ind in range(100001, 100051):
-            if not os.path.isfile("data/cityscapes/Label256Full/%08d.png" %
-                                  ind):  #test label
-                continue
-            semantic = helper.get_semantic_map(
-                "data/cityscapes/Label256Full/%08d.png" % ind)  #test label
-            output = sess.run(
-                generator,
-                feed_dict={
-                    label:
-                    np.concatenate(
-                        (semantic,
-                         np.expand_dims(1 - np.sum(semantic, axis=3), axis=3)),
-                        axis=3)
-                })
-            output = np.minimum(np.maximum(output, 0.0), 255.0)
-            upper = np.concatenate(
-                (output[0, :, :, :], output[1, :, :, :], output[2, :, :, :]),
-                axis=1)
-            middle = np.concatenate(
-                (output[3, :, :, :], output[4, :, :, :], output[5, :, :, :]),
-                axis=1)
-            bottom = np.concatenate(
-                (output[6, :, :, :], output[7, :, :, :], output[8, :, :, :]),
-                axis=1)
-            scipy.misc.toimage(
-                np.concatenate((upper, middle, bottom), axis=0),
-                cmin=0,
-                cmax=255).save("result_256p/%04d/%06d_output.jpg" % (epoch,
-                                                                     ind))
+        # for ind in range(100001, 100051):
+        #     if not os.path.isfile(IMAGES_DIR + "/%d.png" %
+        #                           ind):  #test label
+        #         continue
+        #     semantic = helper.get_semantic_map(
+        #         SEMANTICS_DIR + "/%d.png" % ind)  #test label
+        #     output = sess.run(
+        #         generator,
+        #         feed_dict={
+        #             label:
+        #             np.concatenate(
+        #                 (semantic,
+        #                  np.expand_dims(1 - np.sum(semantic, axis=3), axis=3)),
+        #                 axis=3)
+        #         })
+        #     output = np.minimum(np.maximum(output, 0.0), 255.0)
+        #     upper = np.concatenate(
+        #         (output[0, :, :, :], output[1, :, :, :], output[2, :, :, :]),
+        #         axis=1)
+        #     middle = np.concatenate(
+        #         (output[3, :, :, :], output[4, :, :, :], output[5, :, :, :]),
+        #         axis=1)
+        #     bottom = np.concatenate(
+        #         (output[6, :, :, :], output[7, :, :, :], output[8, :, :, :]),
+        #         axis=1)
+        #     scipy.misc.toimage(
+        #         np.concatenate((upper, middle, bottom), axis=0),
+        #         cmin=0,
+        #         cmax=255).save("result_256p/%04d/%06d_output.jpg" % (epoch,
+        #                                                              ind))
 
 if not os.path.isdir("result_256p/final"):
     os.makedirs("result_256p/final")
-for ind in range(100001, 100501):
-    if not os.path.isfile(
-            "data/cityscapes/Label256Full/%08d.png" % ind):  #test label
-        continue
-    semantic = helper.get_semantic_map(
-        "data/cityscapes/Label256Full/%08d.png" % ind)  #test label
-    output = sess.run(
-        generator,
-        feed_dict={
-            label:
-            np.concatenate(
-                (semantic, np.expand_dims(
-                    1 - np.sum(semantic, axis=3), axis=3)),
-                axis=3)
-        })
-    output = np.minimum(np.maximum(output, 0.0), 255.0)
-    upper = np.concatenate(
-        (output[0, :, :, :], output[1, :, :, :], output[2, :, :, :]), axis=1)
-    middle = np.concatenate(
-        (output[3, :, :, :], output[4, :, :, :], output[5, :, :, :]), axis=1)
-    bottom = np.concatenate(
-        (output[6, :, :, :], output[7, :, :, :], output[8, :, :, :]), axis=1)
-    scipy.misc.toimage(
-        np.concatenate((upper, middle, bottom), axis=0), cmin=0,
-        cmax=255).save("result_256p/final/%06d_output.jpg" % ind)
+# for ind in range(100001, 100501):
+#     if not os.path.isfile(
+#             IMAGES_DIR + "%d.png" % ind):  #test label
+#         continue
+#     semantic = helper.get_semantic_map(
+#         SEMANTICS_DIR + "/%d.png" % ind)  #test label
+#     output = sess.run(
+#         generator,
+#         feed_dict={
+#             label:
+#             np.concatenate(
+#                 (semantic, np.expand_dims(
+#                     1 - np.sum(semantic, axis=3), axis=3)),
+#                 axis=3)
+#         })
+#     output = np.minimum(np.maximum(output, 0.0), 255.0)
+#     upper = np.concatenate(
+#         (output[0, :, :, :], output[1, :, :, :], output[2, :, :, :]), axis=1)
+#     middle = np.concatenate(
+#         (output[3, :, :, :], output[4, :, :, :], output[5, :, :, :]), axis=1)
+#     bottom = np.concatenate(
+#         (output[6, :, :, :], output[7, :, :, :], output[8, :, :, :]), axis=1)
+#     scipy.misc.toimage(
+#         np.concatenate((upper, middle, bottom), axis=0), cmin=0,
+#         cmax=255).save("result_256p/final/%06d_output.jpg" % ind)
