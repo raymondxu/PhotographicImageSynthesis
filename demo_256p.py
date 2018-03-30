@@ -222,7 +222,8 @@ if is_training:
     g_loss = np.zeros(3000, dtype=float)
     input_images = [None] * 3000
     label_images = [None] * 3000
-    for epoch in range(1, 201):
+    NUM_EPOCHS = 200
+    for epoch in range(1, NUM_EPOCHS + 1):
         if os.path.isdir("result_256p/%04d" % epoch):
             continue
         cnt = 0
@@ -254,10 +255,11 @@ if is_training:
                 }
             )  #may try lr:min(1e-6*np.power(1.1,epoch-1),1e-4 if epoch>100 else 1e-3) in case lr:1e-4 is not good
             g_loss[ind] = G_current
-            print("%d %d %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f" %
+            print("epoch=%d cnt=%d loss=%.2f l0=%.2f l1=%.2f l2=%.2f l3=%.2f l4=%.2f l5=%.2f time=%.2f" %
                   (epoch, cnt, np.mean(g_loss[np.where(g_loss)]), np.mean(l0),
                    np.mean(l1), np.mean(l2), np.mean(l3), np.mean(l4),
                    np.mean(l5), time.time() - st))
+            tf.summary.FileWriter('tensorboard_logs', tf.get_default_graph())
         os.makedirs("result_256p/%04d" % epoch)
         target = open("result_256p/%04d/score.txt" % epoch, 'w')
         target.write("%f" % np.mean(g_loss[np.where(g_loss)]))
