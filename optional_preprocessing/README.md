@@ -1,1 +1,0 @@
-This is optional preprocessing on the Cityscapes images. The original Cityscapes images look dull in general. "generate_vivid_images_*.m" is used to generated vivid images. The implementation is based on http://www.cs.huji.ac.il/~danix/epd/.

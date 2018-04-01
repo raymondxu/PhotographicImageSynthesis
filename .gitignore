@@ -1,3 +1,7 @@
 *.mat
 *.meta
 *.data-00000-of-00001
+images
+semantics
+tensorboard_logs
+__pycache__
