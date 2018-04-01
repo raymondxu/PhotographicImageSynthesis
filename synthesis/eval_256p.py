@@ -110,13 +110,22 @@ def build_vgg19(input, reuse=False):
         net['conv5_1'],
         get_weight_bias(vgg_layers, 30),
         name='vgg_conv5_2')
+    net['conv5_3'] = build_net(
+        'conv',
+        net['conv5_2'],
+        get_weight_bias(vgg_layers, 32),
+        name='vgg_conv5_3')
+    net['conv5_4'] = build_net(
+        'conv',
+        net['conv5_3'],
+        get_weight_bias(vgg_layers, 34),
+        name='vgg_conv5_4')
+    net['pool5'] = build_net('pool', net['conv5_4'])
     return net
 
 
 def recursive_generator(label, sp):
     dim = 512 if sp >= 128 else 1024
-    if sp == 512:
-        dim = 128
     if sp == 4:
         input = label
     else:
@@ -141,15 +150,19 @@ def recursive_generator(label, sp):
         normalizer_fn=slim.layer_norm,
         activation_fn=lrelu,
         scope='g_' + str(sp) + '_conv2')
-    if sp == 512:
+    if sp == 256:
         net = slim.conv2d(
             net,
-            3, [1, 1],
+            27, [1, 1],
             rate=1,
             activation_fn=None,
             scope='g_' + str(sp) + '_conv100')
         net = (net + 1.0) / 2.0 * 255.0
+        split0, split1, split2 = tf.split(
+            tf.transpose(net, perm=[3, 1, 2, 0]), num_or_size_splits=3, axis=0)
+        net = tf.concat([split0, split1, split2], 3)
     return net
+
 
 
 def compute_error(real, fake, label):
@@ -157,9 +170,9 @@ def compute_error(real, fake, label):
     return tf.reduce_mean(tf.abs(fake - real))  #simple loss
 
 
-def run(images, is_training=False):
+def run(image, is_training=False):
     sess = tf.Session()
-    sp = 512  #spatial resolution: 512x1024
+    sp = 256  #spatial resolution: 256x512
     with tf.variable_scope(tf.get_variable_scope()):
         label = tf.placeholder(tf.float32, [None, None, None, 20])
         real_image = tf.placeholder(tf.float32, [None, None, None, 3])
@@ -168,7 +181,7 @@ def run(images, is_training=False):
         weight = tf.placeholder(tf.float32)
     lr = tf.placeholder(tf.float32)
     sess.run(tf.global_variables_initializer())
-    ckpt = tf.train.get_checkpoint_state("result_512p")
+    ckpt = tf.train.get_checkpoint_state("result_256p")
     if ckpt:
         print('loaded ' + ckpt.model_checkpoint_path)
         saver = tf.train.Saver(var_list=[
@@ -179,18 +192,20 @@ def run(images, is_training=False):
         ckpt_prev = tf.train.get_checkpoint_state("result_256p")
         saver = tf.train.Saver(var_list=[
             var for var in tf.trainable_variables()
-            if var.name.startswith('g_') and not var.name.startswith('g_512')
+            if var.name.startswith('g_') and not var.name.startswith('g_256')
         ])
         print('loaded ' + ckpt_prev.model_checkpoint_path)
         saver.restore(sess, ckpt_prev.model_checkpoint_path)
     saver = tf.train.Saver(max_to_keep=1000)
 
-    if not os.path.isdir("result_512p/final"):
-        os.makedirs("result_512p/final")
-    for img in images:
+    if not os.path.isdir("result_256p/final"):
+        os.makedirs("result_256p/final")
+    for img in [image]:
+        print(img)
         if not os.path.isfile(img):
             continue
         semantic = helper.get_semantic_map(img)
+        print(semantic)
         output = sess.run(
             generator,
             feed_dict={
@@ -202,7 +217,17 @@ def run(images, is_training=False):
             })
         output = np.minimum(np.maximum(output, 0.0), 255.0)
         base = os.path.basename(img)
-        fielname = os.path.splitext(base)[0]
+        filename = os.path.splitext(base)[0]
+        print('saving to {}'.format(filename))
         scipy.misc.toimage(
             output[0, :, :, :], cmin=0,
-            cmax=255).save("result_512p/final/%s_output.jpg" % filename)
+            cmax=255).save("result_256p/final/%s_output.jpg" % filename)
+
+
+if __name__ == '__main__':
+	import sys
+	print(sys.argv[1])
+	run(sys.argv[1])
+	print('done')
+
+
