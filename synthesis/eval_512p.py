@@ -166,23 +166,7 @@ def run(images, is_training=False):
         fake_image = tf.placeholder(tf.float32, [None, None, None, 3])
         generator = recursive_generator(label, sp)
         weight = tf.placeholder(tf.float32)
-        vgg_real = build_vgg19(real_image)
-        vgg_fake = build_vgg19(generator, reuse=True)
-        p0 = compute_error(vgg_real['input'], vgg_fake['input'], label)
-        p1 = compute_error(vgg_real['conv1_2'], vgg_fake['conv1_2'], label) / 2.6
-        p2 = compute_error(vgg_real['conv2_2'], vgg_fake['conv2_2'],
-                           tf.image.resize_area(label, (sp // 2, sp))) / 4.8
-        p3 = compute_error(vgg_real['conv3_2'], vgg_fake['conv3_2'],
-                           tf.image.resize_area(label, (sp // 4, sp // 2))) / 3.7
-        p4 = compute_error(vgg_real['conv4_2'], vgg_fake['conv4_2'],
-                           tf.image.resize_area(label, (sp // 8, sp // 4))) / 5.6
-        p5 = compute_error(vgg_real['conv5_2'], vgg_fake['conv5_2'],
-                           tf.image.resize_area(label,
-                                            (sp // 16, sp // 8))) * 10 / 1.5
-        G_loss = p0 + p1 + p2 + p3 + p4 + p5
     lr = tf.placeholder(tf.float32)
-    G_opt = tf.train.AdamOptimizer(learning_rate=lr).minimize(
-        G_loss, var_list=[var for var in tf.trainable_variables()])
     sess.run(tf.global_variables_initializer())
     ckpt = tf.train.get_checkpoint_state("result_512p")
     if ckpt:
@@ -200,72 +184,6 @@ def run(images, is_training=False):
         print('loaded ' + ckpt_prev.model_checkpoint_path)
         saver.restore(sess, ckpt_prev.model_checkpoint_path)
     saver = tf.train.Saver(max_to_keep=1000)
-
-    if is_training:
-        g_loss = np.zeros(3000, dtype=float)
-        input_images = [None] * 3000
-        label_images = [None] * 3000
-        for epoch in range(1, 21):
-            if os.path.isdir("result_512p/%04d" % epoch):
-                continue
-            cnt = 0
-            for ind in np.random.permutation(2975) + 1:
-                st = time.time()
-                cnt += 1
-                if input_images[ind] is None:
-                    label_images[ind] = helper.get_semantic_map(
-                        "data/cityscapes/Label512Full/%08d.png" %
-                        ind)  #training label
-                    input_images[ind] = np.expand_dims(
-                        np.float32(
-                        scipy.misc.imread(
-                            "data/cityscapes/RGB512Full_vivid/%08d.png" %
-                            ind)),
-                        axis=0
-                    )  #training image with vivid appearance. see "optional_preprocessing"
-                _, G_current, l0, l1, l2, l3, l4, l5 = sess.run(
-                    [G_opt, G_loss, p0, p1, p2, p3, p4, p5],
-                    feed_dict={
-                        label:
-                        np.concatenate(
-                            (label_images[ind],
-                             np.expand_dims(
-                                 1 - np.sum(label_images[ind], axis=3), axis=3)),
-                            axis=3),
-                        real_image: input_images[ind],
-                        lr: 1e-4
-                    })
-                g_loss[ind] = G_current
-                print("%d %d %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f" %
-                      (epoch, cnt, np.mean(g_loss[np.where(g_loss)]), np.mean(l0),
-                       np.mean(l1), np.mean(l2), np.mean(l3), np.mean(l4),
-                       np.mean(l5), time.time() - st))
-            os.makedirs("result_512p/%04d" % epoch)
-            target = open("result_512p/%04d/score.txt" % epoch, 'w')
-            target.write("%f" % np.mean(g_loss[np.where(g_loss)]))
-            target.close()
-            saver.save(sess, "result_512p/model.ckpt")
-            if epoch % 20 == 0:
-                saver.save(sess, "result_512p/%04d/model.ckpt" % epoch)
-            for ind in range(100001, 100051):
-                if not os.path.isfile("data/cityscapes/Label512Full/%08d.png" %
-                                      ind):  #test label
-                    continue
-                semantic = helper.get_semantic_map(
-                    "data/cityscapes/Label512Full/%08d.png" % ind)  #test label
-                output = sess.run(
-                    generator,
-                    feed_dict={
-                        label:
-                        np.concatenate(
-                            (semantic,
-                             np.expand_dims(1 - np.sum(semantic, axis=3), axis=3)),
-                            axis=3)
-                    })
-                output = np.minimum(np.maximum(output, 0.0), 255.0)
-                scipy.misc.toimage(
-                    output[0, :, :, :], cmin=0, cmax=255).save(
-                        "result_512p/%04d/%06d_output.jpg" % (epoch, ind))
 
     if not os.path.isdir("result_512p/final"):
         os.makedirs("result_512p/final")
