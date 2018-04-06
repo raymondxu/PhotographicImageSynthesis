@@ -4,11 +4,13 @@ from torch import nn
 from torch import optim
 import torch.nn.functional as F
 from torch.autograd import Variable
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from torchvision.utils import save_image
 from torchvision.datasets import MNIST
 import os
+import sys
+from skimage import io
 
 if not os.path.exists('./vae_img'):
     os.mkdir('./vae_img')
@@ -29,26 +31,26 @@ img_transform = transforms.Compose([
     # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
-# dataset = MNIST('./data', transform=img_transform, download=True)
-# dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
 
 class CityscapesDataset(Dataset):
     def __init__(self, root_dir):
         self.root_dir = root_dir
-        self.names = [name for name in os.listdir(root_dir) if os.path.isfile(name)]
+        self.names = os.listdir(root_dir)
 
     def __len__(self):
         return len(self.names)
 
     def __getitem__(self, idx):
         img_name = self.names[idx]
-        image = io.imread(img_name)
+        image = io.imread(os.path.join(self.root_dir, img_name))
         return image
 
 dataset = CityscapesDataset('./semantics')
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
+import IPython
+IPython.embed()
+sys.exit()
 
 class VAE(nn.Module):
     def __init__(self):
