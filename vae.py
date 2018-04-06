@@ -29,7 +29,24 @@ img_transform = transforms.Compose([
     # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
-dataset = MNIST('./data', transform=img_transform, download=True)
+# dataset = MNIST('./data', transform=img_transform, download=True)
+# dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+
+class CityscapesDataset(Dataset):
+    def __init__(self, root_dir):
+        self.root_dir = root_dir
+        self.names = [name for name in os.listdir(root_dir) if os.path.isfile(name)]
+
+    def __len__(self):
+        return len(self.names)
+
+    def __getitem__(self, idx):
+        img_name = self.names[idx]
+        image = io.imread(img_name)
+        return image
+
+dataset = CityscapesDataset('./semantics')
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 
